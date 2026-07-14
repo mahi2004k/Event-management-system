@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+
 
 import java.util.List;
 
@@ -20,10 +22,11 @@ public class BookingController {
 
     @PostMapping
     public ResponseEntity<BookingResponse> createBooking(
-            @Valid @RequestBody BookingRequest request) {
+            @Valid @RequestBody BookingRequest request,
+            Authentication authentication) {
 
         return new ResponseEntity<>(
-                bookingService.createBooking(request),
+                bookingService.createBooking(request, authentication),
                 HttpStatus.CREATED);
     }
 
@@ -42,12 +45,12 @@ public class BookingController {
                 bookingService.getBookingById(id));
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<BookingResponse>> getBookingsByUser(
-            @PathVariable Long userId) {
+    @GetMapping("/my")
+    public ResponseEntity<List<BookingResponse>> getMyBookings(
+            Authentication authentication) {
 
         return ResponseEntity.ok(
-                bookingService.getBookingsByUser(userId));
+                bookingService.getMyBookings(authentication));
     }
 
     @GetMapping("/package/{packageId}")

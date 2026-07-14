@@ -16,6 +16,7 @@ import com.mahesh.ems.repository.EventPackageRepository;
 import com.mahesh.ems.repository.UserRepository;
 import com.mahesh.ems.service.interfaces.BookingService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,12 +33,16 @@ public class BookingServiceImpl implements BookingService {
     private final BookingMapper bookingMapper;
 
     @Override
-    public BookingResponse createBooking(BookingRequest request) {
+    public BookingResponse createBooking(
+            BookingRequest request,
+            Authentication authentication) {
 
-        User user = userRepository.findById(request.getUserId())
+        String email = authentication.getName();
+
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new UserNotFoundException(
-                                "User not found with id : " + request.getUserId()));
+                                "User not found with email : " + email));
 
         EventPackage eventPackage = eventPackageRepository.findById(request.getPackageId())
                 .orElseThrow(() ->
@@ -46,8 +51,7 @@ public class BookingServiceImpl implements BookingService {
 
         if (request.getNumberOfMembers() > eventPackage.getMaxMembers()) {
             throw new BookingLimitExceededException(
-                    "Maximum allowed members is "
-                            + eventPackage.getMaxMembers());
+                    "Maximum allowed members is " + eventPackage.getMaxMembers());
         }
 
         Booking booking = bookingMapper.toEntity(request);
@@ -64,7 +68,6 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional(readOnly = true)
     public List<BookingResponse> getAllBookings() {
-
         return bookingMapper.toResponseList(
                 bookingRepository.findAll());
     }
@@ -83,10 +86,16 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<BookingResponse> getBookingsByUser(Long userId) {
+    public List<BookingResponse> getMyBookings(Authentication authentication) {
+
+        String email = authentication.getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new UserNotFoundException("User not found"));
 
         return bookingMapper.toResponseList(
-                bookingRepository.findByUserId(userId));
+                bookingRepository.findByUserId(user.getId()));
     }
 
     @Override
@@ -105,11 +114,6 @@ public class BookingServiceImpl implements BookingService {
                         new BookingNotFoundException(
                                 "Booking not found with id : " + id));
 
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() ->
-                        new UserNotFoundException(
-                                "User not found with id : " + request.getUserId()));
-
         EventPackage eventPackage = eventPackageRepository.findById(request.getPackageId())
                 .orElseThrow(() ->
                         new EventPackageNotFoundException(
@@ -117,13 +121,10 @@ public class BookingServiceImpl implements BookingService {
 
         if (request.getNumberOfMembers() > eventPackage.getMaxMembers()) {
             throw new BookingLimitExceededException(
-                    "Maximum allowed members is "
-                            + eventPackage.getMaxMembers());
+                    "Maximum allowed members is " + eventPackage.getMaxMembers());
         }
 
-        bookingMapper.updateEntity(request, booking);
-
-        booking.setUser(user);
+        booking.setNumberOfMembers(request.getNumberOfMembers());
         booking.setEventPackage(eventPackage);
 
         Booking updatedBooking = bookingRepository.save(booking);
@@ -143,5 +144,4 @@ public class BookingServiceImpl implements BookingService {
 
         bookingRepository.save(booking);
     }
-
 }
